@@ -6,15 +6,15 @@ import (
 	"io"
 )
 
-// Decoder is an interface that decodes a message
+// Decoder is an interface that decodes a RPC
 type Decoder interface {
-	Decode(io.Reader, *Message) error
+	Decode(io.Reader, *RPC) error
 }
 
 type GOBDecoder struct {
 }
 
-func (dec GOBDecoder) Decode(r io.Reader, msg *Message) error {
+func (dec GOBDecoder) Decode(r io.Reader, msg *RPC) error {
 
 	return gob.NewDecoder(r).Decode(msg)
 
@@ -22,7 +22,7 @@ func (dec GOBDecoder) Decode(r io.Reader, msg *Message) error {
 
 type DefaultDeocoder struct{}
 
-func (dec DefaultDeocoder) Decode(r io.Reader, msg *Message) error {
+func (dec DefaultDeocoder) Decode(r io.Reader, msg *RPC) error {
 	buff := make([]byte, 1028)
 
 	n, err := r.Read(buff)

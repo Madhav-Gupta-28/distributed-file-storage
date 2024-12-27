@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"sync"
 )
 
 // TCPPeer is a remote node over a established connection
@@ -15,6 +14,10 @@ type TCPPeer struct {
 	//if we dial a  connection  to a remote node, we are an outbound peer = true
 	//if we accept a connection from a remote node, we are an inbound peer = false
 	outbound bool
+}
+
+func (p *TCPPeer) Close() error {
+	return p.connection.Close()
 }
 
 func NewTCPPeer(connection net.Conn, outbound bool) *TCPPeer {
@@ -29,21 +32,27 @@ type TCPTransportOptions struct {
 	ListenAddress string
 	Handshakefunc HandshakeFunc
 	Decoder       Decoder
+	OnPeer        func(Peer) error
 }
 
 type TCPTransport struct {
 	TCPTransportOptions
 	listener net.Listener
-	mu       sync.RWMutex
-
-	peers map[net.Addr]Peer
+	rpcchan  chan RPC
 }
 
 func NewTCPTransport(opts TCPTransportOptions) *TCPTransport {
 
 	return &TCPTransport{
 		TCPTransportOptions: opts,
+		rpcchan:             make(chan RPC),
 	}
+}
+
+func (t *TCPTransport) Consume() <-chan RPC {
+
+	return t.rpcchan
+
 }
 
 func (t *TCPTransport) ListenAndAccept() error {
@@ -79,32 +88,47 @@ func (t *TCPTransport) startacceptLoop() {
 	}
 }
 
-type Temp struct{}
-
 func (t *TCPTransport) handleConnection(connection net.Conn) {
+
+	var err error
+
+	defer func() {
+
+		fmt.Printf("Closing connection from %s\n", err)
+		connection.Close()
+
+	}()
+
 	peer := NewTCPPeer(connection, false)
 
 	if err := t.Handshakefunc(peer); err != nil {
-		connection.Close()
-		fmt.Printf("Error shaking hands with peer: %v\n", err)
 		return
+	}
+
+	if t.OnPeer != nil {
+
+		if err = t.OnPeer(peer); err != nil {
+			return
+		}
 
 	}
 
 	// Read loop
-	msg := &Message{}
+	rpc := RPC{}
 
 	for {
 
-		if err := t.Decoder.Decode(connection, msg); err != nil {
-			fmt.Printf("Error decoding message: %v\n", err)
-			continue
+		err = t.Decoder.Decode(connection, &rpc)
 
+		if err != nil {
+			return
 		}
 
-		msg.from = connection.RemoteAddr()
+		rpc.from = connection.RemoteAddr()
 
-		fmt.Printf("Message : %v\n  ", msg)
+		t.rpcchan <- rpc
+
+		// fmt.Printf("rpc : %v\n  ", rpc)
 	}
 
 }
