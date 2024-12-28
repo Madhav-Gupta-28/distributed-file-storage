@@ -67,11 +67,9 @@ func NewStore(opts StoreOpts) *Store {
 	if opts.PathTransformFunc == nil {
 		opts.PathTransformFunc = DefualtPathTransformFunc
 	}
-
 	if len(opts.Root) == 0 {
 		opts.Root = defaultRootFolderName
 	}
-
 	return &Store{StoreOpts: opts}
 }
 
@@ -94,9 +92,12 @@ func (p *PathKey) GetPathFolderName() string {
 }
 
 func (s *Store) Delete(key string) error {
-
 	pathkey := s.PathTransformFunc(key)
 	return os.RemoveAll(s.Root + "/" + pathkey.GetPathFolderName())
+}
+
+func (s *Store) ClearRoot() error {
+	return os.RemoveAll(s.Root)
 }
 
 func (s *Store) Read(key string) (io.Reader, error) {
