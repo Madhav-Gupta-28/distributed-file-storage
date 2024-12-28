@@ -6,9 +6,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"strings"
 )
+
+const defaultRootFolderName = "madhavnetwork"
 
 func CASPathTransformFunc(key string) PathKey {
 	hash := sha1.Sum([]byte(key))
@@ -33,8 +36,11 @@ func CASPathTransformFunc(key string) PathKey {
 
 type PathTransformFunc func(string) PathKey
 
-var DefualtPathTransformFunc = func(key string) string {
-	return key
+var DefualtPathTransformFunc = func(key string) PathKey {
+	return PathKey{
+		Pathname: key,
+		Filename: key,
+	}
 }
 
 type PathKey struct {
@@ -48,6 +54,8 @@ func (p PathKey) FullPath() string {
 }
 
 type StoreOpts struct {
+	// Root is the folder name of the root containing all the files and folders of the system
+	Root              string
 	PathTransformFunc PathTransformFunc
 }
 
@@ -56,7 +64,40 @@ type Store struct {
 }
 
 func NewStore(opts StoreOpts) *Store {
+	if opts.PathTransformFunc == nil {
+		opts.PathTransformFunc = DefualtPathTransformFunc
+	}
+
+	if len(opts.Root) == 0 {
+		opts.Root = defaultRootFolderName
+	}
+
 	return &Store{StoreOpts: opts}
+}
+
+func (s *Store) Has(key string) bool {
+	pathkey := s.PathTransformFunc(key)
+	_, err := os.Stat(pathkey.FullPath())
+	return err != fs.ErrNotExist
+}
+
+func (p *PathKey) GetPathFolderName() string {
+
+	paths := strings.Split(p.Pathname, "/")
+
+	if len(paths) == 0 {
+		return ""
+	}
+
+	return paths[0]
+}
+
+func (s *Store) Delete(key string) error {
+
+	pathkey := s.PathTransformFunc(key)
+
+	return os.RemoveAll(pathkey.GetPathFolderName())
+
 }
 
 func (s *Store) Read(key string) (io.Reader, error) {
@@ -75,23 +116,19 @@ func (s *Store) readStream(key string) (io.ReadCloser, error) {
 
 	pathkey := s.PathTransformFunc(key)
 
-	return os.Open(pathkey.FullPath())
+	return os.Open(s.Root + "/" + pathkey.FullPath())
 
 }
 
 func (s *Store) writeStream(key string, r io.Reader) error {
 
 	pathKey := s.PathTransformFunc(key)
-	if err := os.MkdirAll(pathKey.Pathname, os.ModePerm); err != nil {
+	if err := os.MkdirAll(s.Root+"/"+pathKey.Pathname, os.ModePerm); err != nil {
 		return err
 	}
-	// buf := new(bytes.Buffer)
-	// io.Copy(buf, r)
-	// filenameBytes := md5.Sum(buf.Bytes())
-	// filename := hex.EncodeToString(filenameBytes[:])
 	pathFilename := pathKey.FullPath()
 
-	f, err := os.Create(pathFilename)
+	f, err := os.Create(s.Root + "/" + pathFilename)
 	if err != nil {
 		return err
 	}
@@ -99,6 +136,6 @@ func (s *Store) writeStream(key string, r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("wrote %d bytes to disk : %s\n ", n, pathFilename)
+	fmt.Printf("wrote %d bytes to disk : %s\n ", n, s.Root+"/"+pathFilename)
 	return nil
 }

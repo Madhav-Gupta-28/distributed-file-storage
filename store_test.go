@@ -44,3 +44,28 @@ func TestStore(t *testing.T) {
 	}
 
 }
+
+func TestDelete(t *testing.T) {
+
+	opts := StoreOpts{
+		PathTransformFunc: CASPathTransformFunc,
+	}
+
+	store := NewStore(opts)
+
+	// println(store.StoreOpts)
+
+	store.Delete("testingpujn")
+
+}
+
+func TestHas(t *testing.T) {
+
+	opts := StoreOpts{
+		PathTransformFunc: CASPathTransformFunc,
+	}
+
+	store := NewStore(opts)
+
+	println(store.Has("tegpujn"))
+}
