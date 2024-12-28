@@ -30,7 +30,13 @@ func TestStore(t *testing.T) {
 		t.Fatalf("failed to write stream: %v", err)
 	}
 
+	if ok := store.Has("testingpujn"); !ok {
+		t.Errorf("Expected to have an key  testingpujn")
+	}
+
 	reader, err := store.Read("testingpujn")
+
+	fmt.Printf("reader %+v", reader)
 
 	if err != nil {
 		t.Fatalf("failed to read stream: %v", err)
@@ -46,26 +52,10 @@ func TestStore(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-
 	opts := StoreOpts{
 		PathTransformFunc: CASPathTransformFunc,
+		Root:              defaultRootFolderName,
 	}
-
 	store := NewStore(opts)
-
-	// println(store.StoreOpts)
-
 	store.Delete("testingpujn")
-
-}
-
-func TestHas(t *testing.T) {
-
-	opts := StoreOpts{
-		PathTransformFunc: CASPathTransformFunc,
-	}
-
-	store := NewStore(opts)
-
-	println(store.Has("tegpujn"))
 }

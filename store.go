@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"strings"
 )
@@ -77,8 +77,9 @@ func NewStore(opts StoreOpts) *Store {
 
 func (s *Store) Has(key string) bool {
 	pathkey := s.PathTransformFunc(key)
-	_, err := os.Stat(pathkey.FullPath())
-	return err != fs.ErrNotExist
+	pathkeywithfoldername := s.Root + "/" + pathkey.FullPath()
+	_, err := os.Stat(pathkeywithfoldername)
+	return !errors.Is(err, os.ErrNotExist)
 }
 
 func (p *PathKey) GetPathFolderName() string {
@@ -95,9 +96,7 @@ func (p *PathKey) GetPathFolderName() string {
 func (s *Store) Delete(key string) error {
 
 	pathkey := s.PathTransformFunc(key)
-
-	return os.RemoveAll(pathkey.GetPathFolderName())
-
+	return os.RemoveAll(s.Root + "/" + pathkey.GetPathFolderName())
 }
 
 func (s *Store) Read(key string) (io.Reader, error) {
@@ -115,9 +114,8 @@ func (s *Store) Read(key string) (io.Reader, error) {
 func (s *Store) readStream(key string) (io.ReadCloser, error) {
 
 	pathkey := s.PathTransformFunc(key)
-
-	return os.Open(s.Root + "/" + pathkey.FullPath())
-
+	pathKeyWithRoot := s.Root + "/" + pathkey.FullPath()
+	return os.Open(pathKeyWithRoot)
 }
 
 func (s *Store) writeStream(key string, r io.Reader) error {
