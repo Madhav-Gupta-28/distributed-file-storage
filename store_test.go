@@ -53,18 +53,3 @@ func TestStore(t *testing.T) {
 
 	}
 }
-
-// func TestDelete(t *testing.T) {
-// 	opts := StoreOpts{
-// 		PathTransformFunc: CASPathTransformFunc,
-// 		Root:              defaultRootFolderName,
-// 	}
-// 	store := NewStore(opts)
-// 	store.Delete(key)
-// }
-
-// func TestClear(t *testing.T) {
-// 	store := newStore()
-// 	ok := store.ClearRoot()
-// 	println(ok)
-// }

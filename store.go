@@ -81,13 +81,10 @@ func (s *Store) Has(key string) bool {
 }
 
 func (p *PathKey) GetPathFolderName() string {
-
 	paths := strings.Split(p.Pathname, "/")
-
 	if len(paths) == 0 {
 		return ""
 	}
-
 	return paths[0]
 }
 
@@ -100,6 +97,12 @@ func (s *Store) ClearRoot() error {
 	return os.RemoveAll(s.Root)
 }
 
+// Public Function of wirte stream
+func (s *Store) Write(key string, r io.Reader) error {
+	return s.writeStream(key, r)
+}
+
+// Public function of read stream
 func (s *Store) Read(key string) (io.Reader, error) {
 
 	f, err := s.readStream(key)

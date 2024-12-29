@@ -1,6 +1,7 @@
 package peer2peer
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -66,8 +67,9 @@ func (t *TCPTransport) ListenAndAccept() error {
 		return err
 	}
 
-	log.Printf("Listening on %s\n", t.ListenAddress)
 	go t.startacceptLoop()
+
+	fmt.Printf(" TCP Transport Listening on %s\n", t.ListenAddress)
 
 	return nil
 }
@@ -77,18 +79,22 @@ func (t *TCPTransport) startacceptLoop() {
 	for {
 		connection, err := t.listener.Accept()
 
+		if errors.Is(err, net.ErrClosed) {
+			return
+		}
+
 		if err != nil {
 			log.Printf("Error accepting connection: %v\n", err)
 			continue
 		}
 
 		log.Printf("Accepted new connection from %s\n", connection.RemoteAddr())
-		go t.handleConnection(connection)
+		go t.handleConnection(connection, false)
 
 	}
 }
 
-func (t *TCPTransport) handleConnection(connection net.Conn) {
+func (t *TCPTransport) handleConnection(connection net.Conn, outbound bool) {
 
 	var err error
 
@@ -99,7 +105,7 @@ func (t *TCPTransport) handleConnection(connection net.Conn) {
 
 	}()
 
-	peer := NewTCPPeer(connection, false)
+	peer := NewTCPPeer(connection, outbound)
 
 	if err := t.Handshakefunc(peer); err != nil {
 		return
@@ -131,4 +137,23 @@ func (t *TCPTransport) handleConnection(connection net.Conn) {
 		// fmt.Printf("rpc : %v\n  ", rpc)
 	}
 
+}
+
+// Close Function Implements the Transport interface
+func (t *TCPTransport) Close() error {
+	return t.listener.Close()
+}
+
+// Dial Function Implements the Transport interface
+func (t *TCPTransport) Dial(addr string) error {
+
+	connection, err := net.Dial("tcp", addr)
+
+	if err != nil {
+		return err
+	}
+
+	go t.handleConnection(connection, true)
+
+	return nil
 }

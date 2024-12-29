@@ -2,41 +2,43 @@ package main
 
 import (
 	"distributed-file-storage/peer2peer"
-	"fmt"
 	"log"
 )
 
-func onpeer(peer peer2peer.Peer) error {
+func makeServer(addr string, root string, nodes ...string) *FileServer {
 
-	peer.Close()
-	return fmt.Errorf("failed the onpeer func")
+	tcptransportopts := peer2peer.TCPTransportOptions{
+		ListenAddress: addr,
+		Handshakefunc: peer2peer.NOPhandshakeFunc,
+		Decoder:       peer2peer.DefaultDeocoder{},
+		// OnPeer:        OnPeer,
+	}
+
+	tcptransport := peer2peer.NewTCPTransport(tcptransportopts)
+
+	FileServeroptions := FileServerOptions{
+		ListenAddress:     addr,
+		StorageRoot:       root,
+		PathTransformFunc: CASPathTransformFunc,
+		Transport:         tcptransport,
+		BootstrapNodes:    nodes,
+	}
+
+	s := NewFileServer(FileServeroptions)
+
+	return s
 }
 
 func main() {
 
-	tcpopts := peer2peer.TCPTransportOptions{
-		ListenAddress: ":3000",
-		Handshakefunc: peer2peer.NOPhandshakeFunc,
-		Decoder:       peer2peer.DefaultDeocoder{},
-		OnPeer:        onpeer,
-	}
+	s1 := makeServer(":3000", "")
 
-	tr := peer2peer.NewTCPTransport(tcpopts)
+	s2 := makeServer(":4000", ":3000")
 
 	go func() {
-
-		for rpc := range tr.Consume() {
-			fmt.Printf("rpc : %+v\n  ", rpc)
-		}
+		log.Fatal(s1.Start())
 	}()
 
-	err := tr.ListenAndAccept()
+	s2.Start()
 
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	select {}
-
-	// fmt.Println("Hello, World!")
 }
