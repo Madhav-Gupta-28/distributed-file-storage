@@ -1,9 +1,7 @@
 package peer2peer
 
-import "net"
-
-// RPC represents any arbitary data that is being send over each transport between two nodes in the network
+// RPC represents a remote procedure call
 type RPC struct {
-	from    net.Addr
+	From    string
 	Payload []byte
 }
