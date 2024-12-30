@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"distributed-file-storage/peer2peer"
-	"log"
+	"fmt"
 	"time"
 )
 
@@ -34,21 +34,34 @@ func makeServer(addr string, root string, nodes ...string) *FileServer {
 
 func main() {
 
-	s1 := makeServer(":3000", "")
+	s1 := makeServer(":3000", "madhavgupta", ":5000")
 
-	s2 := makeServer(":4000", "", ":3000")
+	s2 := makeServer(":4000", "madhavgupta2", ":3000")
 
-	go func() {
-		log.Fatal(s1.Start())
-	}()
+	go s1.Start()
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	go s2.Start()
 
 	time.Sleep(1 * time.Second)
-	data := bytes.NewReader([]byte("hello world I ambuildinng smth"))
-	s2.StoreData("madhavgupta", data)
 
+	for i := 0; i < 10; i++ {
+		s2.Store(fmt.Sprintf("madhavgupta%d", i), bytes.NewReader([]byte("hello world I ambuildinng smth")))
+		time.Sleep(5 * time.Millisecond)
+
+	}
+
+	// data, err := s2.Get("madhavgupta")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// b, err := ioutil.ReadAll(data)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// fmt.Println(string(b))
 	select {}
 }

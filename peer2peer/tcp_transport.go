@@ -49,7 +49,7 @@ func NewTCPTransport(opts TCPTransportOptions) *TCPTransport {
 
 	return &TCPTransport{
 		TCPTransportOptions: opts,
-		rpcchan:             make(chan RPC),
+		rpcchan:             make(chan RPC, 1024),
 	}
 }
 
@@ -115,18 +115,23 @@ func (t *TCPTransport) handleConnection(connection net.Conn, outbound bool) {
 	// Read loop
 	for {
 		rpc := RPC{}
+
 		err = t.Decoder.Decode(connection, &rpc)
 		if err != nil {
-			log.Printf("Decoding failed: %v\n", err)
 			return
 		}
+
 		rpc.From = connection.RemoteAddr().String()
-		peer.Wg.Add(1)
-		fmt.Println("Waiting till stream is done ")
+
+		if rpc.Stream {
+			peer.Wg.Add(1)
+			fmt.Println("Waiting till stream is done ")
+			peer.Wg.Wait()
+			fmt.Println("stream done continuing normal read loop")
+			continue
+		}
 
 		t.rpcchan <- rpc
-		peer.Wg.Wait()
-		fmt.Println("stream done continuing normal real loop")
 	}
 }
 
@@ -147,4 +152,9 @@ func (t *TCPTransport) Dial(addr string) error {
 	go t.handleConnection(connection, true)
 
 	return nil
+}
+
+// Addr implements the Transport interface
+func (t *TCPTransport) Addr() string {
+	return t.ListenAddress
 }
