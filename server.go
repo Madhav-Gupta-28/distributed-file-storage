@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"distributed-file-storage/peer2peer"
+	"encoding/binary"
 	"encoding/gob"
 	"fmt"
 	"io"
@@ -99,16 +100,29 @@ func (fs *FileServer) handleMessageGetFile(from string, p MsgGetFile) error {
 	if !fs.store.Has(p.Key) {
 		return fmt.Errorf("file not found")
 	}
-	r, err := fs.store.Read(p.Key)
+	fileSize, r, err := fs.store.Read(p.Key)
 	if err != nil {
 		return err
 	}
+
+	// Close the reader after the file is sents
+	rc, ok := r.(io.ReadCloser)
+	if !ok {
+		return fmt.Errorf("reader is not a ReadCloser")
+	}
+	defer rc.Close()
 
 	peer, ok := fs.peers[from]
 	if !ok {
 		return fmt.Errorf("peer not found")
 	}
 
+	// First send the message to the peer to indicate that the peer is ready to send the data
+	peer.Send([]byte{peer2peer.IncomingStream})
+
+	binary.Write(peer, binary.LittleEndian, fileSize)
+
+	// Then send the data to the peer
 	n, err := io.Copy(peer, r)
 	if err != nil {
 		return err
@@ -127,7 +141,7 @@ func (fs *FileServer) handleMessageStoreFile(from string, p MessageStoreFile) er
 		fmt.Println("received and written to the disk", n)
 		return err
 	}
-	peer.(*peer2peer.TCPPeer).Wg.Done()
+	peer.CloseStream()
 	return nil
 }
 
@@ -202,7 +216,12 @@ type MsgGetFile struct {
 func (fs *FileServer) Get(key string) (io.Reader, error) {
 
 	if fs.store.Has(key) {
-		return fs.store.Read(key)
+		fmt.Println("file found in the local store")
+		_, r, err := fs.store.Read(key)
+		if err != nil {
+			return nil, err
+		}
+		return r, nil
 	}
 
 	msg := Message{
@@ -218,18 +237,23 @@ func (fs *FileServer) Get(key string) (io.Reader, error) {
 	time.Sleep(1 * time.Millisecond)
 
 	for _, peer := range fs.peers {
-		filebuf := new(bytes.Buffer)
-
-		n, err := io.CopyN(filebuf, peer, 10)
-		if err != nil {
+		// Read the file size from the peer
+		var fileSize int64
+		if err := binary.Read(peer, binary.LittleEndian, &fileSize); err != nil {
 			return nil, err
 		}
-		fmt.Println("received and written to the disk", n)
+		if n, err := fs.store.Write(key, io.LimitReader(peer, fileSize)); err != nil {
+			fmt.Println("received the data from the peer", n)
+			return nil, err
+		}
+		peer.CloseStream()
 	}
 
-	select {}
-
-	return nil, nil
+	_, r, err := fs.store.Read(key)
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
 func (fs *FileServer) Store(key string, data io.Reader) error {

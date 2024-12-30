@@ -1,9 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"distributed-file-storage/peer2peer"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"time"
 )
 
@@ -46,22 +47,24 @@ func main() {
 
 	time.Sleep(1 * time.Second)
 
-	for i := 0; i < 10; i++ {
-		s2.Store(fmt.Sprintf("madhavgupta%d", i), bytes.NewReader([]byte("hello world I ambuildinng smth")))
-		time.Sleep(5 * time.Millisecond)
+	// for i := 0; i < 10; i++ {
+	// 	s2.Store(fmt.Sprintf("madhavgupta%d", i), bytes.NewReader([]byte("hello world I ambuildinng smth")))
+	// 	time.Sleep(5 * time.Millisecond)
 
+	// }
+
+	// s2.Store("madhav", bytes.NewReader([]byte("hello world I ambuildinng smth")))
+	// time.Sleep(5 * time.Millisecond)
+
+	data, err := s2.Get("madhav")
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	// data, err := s2.Get("madhavgupta")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	b, err := ioutil.ReadAll(data)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// b, err := ioutil.ReadAll(data)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// fmt.Println(string(b))
-	select {}
+	fmt.Println(string(b))
 }

@@ -15,7 +15,7 @@ type TCPPeer struct {
 	//if we dial a  connection  to a remote node, we are an outbound peer = true
 	//if we accept a connection from a remote node, we are an inbound peer = false
 	outbound bool
-	Wg       *sync.WaitGroup
+	wg       *sync.WaitGroup
 }
 
 func (p *TCPPeer) Send(data []byte) error {
@@ -23,12 +23,16 @@ func (p *TCPPeer) Send(data []byte) error {
 	return err
 }
 
+func (p *TCPPeer) CloseStream() {
+	p.wg.Done()
+}
+
 func NewTCPPeer(connection net.Conn, outbound bool) *TCPPeer {
 
 	return &TCPPeer{
 		Conn:     connection,
 		outbound: outbound,
-		Wg:       &sync.WaitGroup{},
+		wg:       &sync.WaitGroup{},
 	}
 }
 
@@ -124,9 +128,9 @@ func (t *TCPTransport) handleConnection(connection net.Conn, outbound bool) {
 		rpc.From = connection.RemoteAddr().String()
 
 		if rpc.Stream {
-			peer.Wg.Add(1)
+			peer.wg.Add(1)
 			fmt.Println("Waiting till stream is done ")
-			peer.Wg.Wait()
+			peer.wg.Wait()
 			fmt.Println("stream done continuing normal read loop")
 			continue
 		}
