@@ -54,7 +54,8 @@ func (p PathKey) FullPath() string {
 
 type StoreOpts struct {
 	// Root is the folder name of the root containing all the files and folders of the system
-	Root              string
+	Root string
+
 	PathTransformFunc PathTransformFunc
 }
 
@@ -72,9 +73,9 @@ func NewStore(opts StoreOpts) *Store {
 	return &Store{StoreOpts: opts}
 }
 
-func (s *Store) Has(key string) bool {
+func (s *Store) Has(id string, key string) bool {
 	pathkey := s.PathTransformFunc(key)
-	pathkeywithfoldername := s.Root + "/" + pathkey.FullPath()
+	pathkeywithfoldername := s.Root + "/" + id + "/" + pathkey.FullPath()
 	_, err := os.Stat(pathkeywithfoldername)
 	return !errors.Is(err, os.ErrNotExist)
 }
@@ -87,9 +88,9 @@ func (p *PathKey) GetPathFolderName() string {
 	return paths[0]
 }
 
-func (s *Store) Delete(key string) error {
+func (s *Store) Delete(id string, key string) error {
 	pathkey := s.PathTransformFunc(key)
-	return os.RemoveAll(s.Root + "/" + pathkey.GetPathFolderName())
+	return os.RemoveAll(s.Root + "/" + id + "/" + pathkey.GetPathFolderName())
 }
 
 func (s *Store) ClearRoot() error {
@@ -97,19 +98,19 @@ func (s *Store) ClearRoot() error {
 }
 
 // Public Function of wirte stream
-func (s *Store) Write(key string, r io.Reader) (int64, error) {
-	return s.writeStream(key, r)
+func (s *Store) Write(id string, key string, r io.Reader) (int64, error) {
+	return s.writeStream(id, key, r)
 }
 
 // Public function of read stream
-func (s *Store) Read(key string) (int64, io.Reader, error) {
-	return s.readStream(key)
+func (s *Store) Read(id string, key string) (int64, io.Reader, error) {
+	return s.readStream(id, key)
 }
 
-func (s *Store) readStream(key string) (int64, io.ReadCloser, error) {
+func (s *Store) readStream(id string, key string) (int64, io.ReadCloser, error) {
 
 	pathkey := s.PathTransformFunc(key)
-	pathKeyWithRoot := s.Root + "/" + pathkey.FullPath()
+	pathKeyWithRoot := s.Root + "/" + id + "/" + pathkey.FullPath()
 
 	file, err := os.Open(pathKeyWithRoot)
 
@@ -125,21 +126,36 @@ func (s *Store) readStream(key string) (int64, io.ReadCloser, error) {
 	return fi.Size(), file, nil
 }
 
-func (s *Store) writeStream(key string, r io.Reader) (int64, error) {
+func (s *Store) WriteDecrypt(id string, encKey []byte, key string, r io.Reader) (int64, error) {
 
-	pathKey := s.PathTransformFunc(key)
-	if err := os.MkdirAll(s.Root+"/"+pathKey.Pathname, os.ModePerm); err != nil {
+	f, err := s.openFileForWriting(id, key)
+	if err != nil {
 		return 0, err
+	}
+	n, err := CopyDecrypt(encKey, r, f)
+	if err != nil {
+		return 0, err
+	}
+	return int64(n), nil
+
+}
+
+func (s *Store) openFileForWriting(id string, key string) (*os.File, error) {
+	pathKey := s.PathTransformFunc(key)
+	if err := os.MkdirAll(s.Root+"/"+id+"/"+pathKey.Pathname, os.ModePerm); err != nil {
+		return nil, err
 	}
 	pathFilename := pathKey.FullPath()
 
-	f, err := os.Create(s.Root + "/" + pathFilename)
+	return os.Create(s.Root + "/" + id + "/" + pathFilename)
+
+}
+
+func (s *Store) writeStream(id string, key string, r io.Reader) (int64, error) {
+	f, err := s.openFileForWriting(id, key)
 	if err != nil {
 		return 0, err
 	}
-	n, err := io.Copy(f, r)
-	if err != nil {
-		return 0, err
-	}
-	return n, nil
+	return io.Copy(f, r)
+
 }

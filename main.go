@@ -1,10 +1,8 @@
 package main
 
 import (
+	"bytes"
 	"distributed-file-storage/peer2peer"
-	"fmt"
-	"io/ioutil"
-	"log"
 	"time"
 )
 
@@ -24,6 +22,7 @@ func makeServer(addr string, root string, nodes ...string) *FileServer {
 		PathTransformFunc: CASPathTransformFunc,
 		Transport:         tcptransport,
 		BootstrapNodes:    nodes,
+		EncryptKey:        NewEncryptKey(),
 	}
 
 	s := NewFileServer(FileServeroptions)
@@ -53,18 +52,18 @@ func main() {
 
 	// }
 
-	// s2.Store("madhav", bytes.NewReader([]byte("hello world I ambuildinng smth")))
-	// time.Sleep(5 * time.Millisecond)
+	s2.Store("madhav", bytes.NewReader([]byte("hello world I ambuildinng smth")))
+	time.Sleep(5 * time.Millisecond)
 
-	data, err := s2.Get("madhav")
-	if err != nil {
-		log.Fatal(err)
-	}
+	// data, err := s2.Get("madhav")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	b, err := ioutil.ReadAll(data)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// b, err := ioutil.ReadAll(data)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	fmt.Println(string(b))
+	// fmt.Println(string(b))
 }
