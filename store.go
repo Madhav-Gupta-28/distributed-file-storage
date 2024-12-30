@@ -98,7 +98,7 @@ func (s *Store) ClearRoot() error {
 }
 
 // Public Function of wirte stream
-func (s *Store) Write(key string, r io.Reader) error {
+func (s *Store) Write(key string, r io.Reader) (int64, error) {
 	return s.writeStream(key, r)
 }
 
@@ -122,22 +122,22 @@ func (s *Store) readStream(key string) (io.ReadCloser, error) {
 	return os.Open(pathKeyWithRoot)
 }
 
-func (s *Store) writeStream(key string, r io.Reader) error {
+func (s *Store) writeStream(key string, r io.Reader) (int64, error) {
 
 	pathKey := s.PathTransformFunc(key)
 	if err := os.MkdirAll(s.Root+"/"+pathKey.Pathname, os.ModePerm); err != nil {
-		return err
+		return 0, err
 	}
 	pathFilename := pathKey.FullPath()
 
 	f, err := os.Create(s.Root + "/" + pathFilename)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	n, err := io.Copy(f, r)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	fmt.Printf("wrote %d bytes to disk : %s\n ", n, s.Root+"/"+pathFilename)
-	return nil
+	return n, nil
 }
